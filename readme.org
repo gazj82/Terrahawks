@@ -1,0 +1,17 @@
+*Terrahawks for amiga*
+
+* Amiga Version 1.0 - initial release
+Terrahawks
+
+Amiga Version 1.0
+
+Originally a Phillips Videopac G7000 game
+Amiga Version by Gary James 2017
+
+This is my second go at Blitz Basic and my second port of a G7000 game to the
+Amiga.
+It should work on any original Amiga.
+
+The .adf file is a finished disk image for use in / on amigas
+
+The source file ending .bb
