@@ -1,0 +1,865 @@
+AMIGA
+WBStartup
+
+.variables
+DEFTYPE .w
+playery=256-18  ;player y position
+playerframe=0   ;player animation frame
+playerspeed=4   ;players ship speed
+bulletspeed=10  ;players bullet speed
+highscore=0     ;highscore reset
+eneymax=100     ;min downswoop of enemy
+Dim enemyx(8)   ;enemy x position 8of
+Dim enemyy(8)   ;enemy y position 8of
+Dim enemyxd(8)  ;enemy x old position 8of
+Dim enemyyd(8)  ;enemy y old position 8of
+Dim enemyac(8)  ;enemy condition 8of
+Dim enemyexplode(8) ;enemy explode condition
+Dim firex(8)    ;enemy fire x position 8of
+Dim firey(8)    ;enemy fire y position 8of
+Dim firexo(8)   ;enemy fire x old position 8of
+Dim fireyo(8)   ;enemy fire y old position 8of
+Dim firexd(8)
+Dim firext(8)
+Dim firefra(8)  ;enemy fire frame 8of
+Dim firetype(8) ;enemy fire type  8of
+For i=0 To 7:Let firexd(i)=1:Let firefra(i)=28:Next i
+SpriteMode 0
+
+.displaysetup
+;create 32 colour display for loading and title
+COPPER1.l=$6 ;bitplanes
+;COPPER+$20 ;dual playfield
+InitCopList 1,44,DispHeight,COPPER1,8,32,0
+;create 16 colour display for game
+COPPER0.l=$4 ;bitplanes
+;COPPER0+$20 ;dual playfield
+InitCopList 0,44,DispHeight,COPPER0,8,16,0
+
+.loadingscreen
+BitMap 1,360,DispHeight,6
+Use BitMap 1
+Cls
+LoadBitMap 1,"loading.iff"
+LoadPalette 1,"loading.iff"
+BLITZ
+CreateDisplay 1
+DisplayPalette 1,1
+DisplayBitMap 1,1
+
+.loadsounds
+QAMIGA
+LoadSound 0,"head.iff"
+LoadSound 1,"spinner.iff"
+LoadSound 2,"dead.iff"
+LoadSound 3,"fire.iff"
+LoadSound 4,"fire1.iff"
+LoadSound 5,"enedead.iff"
+LoadSound 10,"level0.iff"
+LoadSound 11,"level1.iff"
+LoadSound 12,"level2.iff"
+LoadSound 13,"level3.iff"
+LoadSound 14,"speech1.iff"
+LoadSound 15,"speech6.iff"
+maxsample=2
+mem.l=AvailMem_(2)
+If mem>524288
+LoadSound 16,"speech2.iff"
+LoadSound 17,"speech3.iff"
+LoadSound 18,"speech4.iff"
+LoadSound 19,"speech5.iff"
+LoadSound 20,"speech7.iff"
+maxsample=7
+EndIf
+
+.loadsprites
+BitMap 0,360,DispHeight,4
+LoadBitMap 0,"spritegrid.iff"
+LoadPalette 0,"spritegrid.iff"
+Use BitMap 0
+
+.getshapes
+;ship
+GetaShape 0,1,1,33,16   ;ship shape hollow
+GetaShape 1,35,1,33,16  ;ship shape charged
+GetaShape 2,69,1,33,16  ;ship shape charged
+GetaShape 3,8,18,2,16   ;bullet
+For i=0 To 3 :MidHandle i: Next i
+GetaShape 18,103,1,33,16 ;ship fired
+MidHandle 18
+;enemy
+GetaShape 19,18,30,16,4 ;enemy
+MidHandle 19
+;head
+fr=1
+For i=4 To 8
+  GetaShape i,fr,35,16,16 ;head
+  MidHandle i
+  fr+17
+Next i
+;spinner
+GetaShape 9,18,52,16,16 ;small spinner
+GetaShape 12,35,52,16,16 ;medium spinner
+GetaShape 15,53,52,32,32 ;large spinne
+;rotate small spinner
+MidHandle 9
+CopyShape 9,10 ;rotate small spinner 45
+Rotate 10,0.083
+MidHandle 10
+CopyShape 10,11
+Rotate 11,0.083
+MidHandle 11
+;rotate medium spinner
+MidHandle 12
+CopyShape 12,13 ;rotate medium spinner 45
+Rotate 13,0.083
+MidHandle 13
+CopyShape 13,14
+Rotate 14,0.083
+MidHandle 14
+;rotate large spinner
+MidHandle 15
+CopyShape 15,16 ;rotate large spinner 45
+Rotate 16,0.083
+MidHandle 16
+CopyShape 16,17
+Rotate 17,0.083
+MidHandle 17
+;explosion
+GetaShape 20,8,93,2,2
+GetaShape 21,23,91,6,6
+GetaShape 22,39,90,8,8
+GetaShape 23,54,88,12,12
+For i=20 To 23:MidHandle i:Next i
+;large explosion
+CopyShape 20,34
+CopyShape 21,35
+CopyShape 22,36
+CopyShape 23,37
+For i=34 To 37:Scale i,3,1:MidHandle i:Next i
+;enebullet 1
+GetaShape 24,35,18,16,16 ; enebullet 1
+GetaShape 25,52,18,16,16
+MidHandle 24:MidHandle 25
+;enebullet 2
+GetaShape 26,69,26,8,8 ; enebullet 2
+GetaShape 27,86,26,8,8 ; enebullet 2
+MidHandle 26:MidHandle 27
+;enebullet 4
+GetaShape 28,103,24,10,10 ; enebullet 4
+GetaShape 29,120,24,10,10 ; enebullet 4
+MidHandle 28:MidHandle 29
+;enebullet 3
+GetaShape 30,137,26,8,8 ;enebullet 3
+GetaShape 31,154,26,8,8
+GetaShape 32,171,26,8,8
+GetaShape 33,188,22,12,12
+For i=30 To 33:MidHandle i:Next i
+;headblast lines
+GetaShape 38,1,103,16,16 ;headblast
+GetaShape 39,18,103,16,16
+GetaShape 40,35,103,16,16
+GetaShape 41,52,103,16,16
+GetaShape 42,1,120,16,16
+For i = 38 To 42:MidHandle i:Next i
+
+.queues
+For i=0 To 19
+Queue i,1
+Next i
+
+.loadtitlepic
+Use BitMap 1
+Cls
+LoadBitMap 1,"title.iff"
+LoadPalette 1,"title.iff"
+
+
+BLITZ
+.mainloop
+;newgame
+While Joyb(0)=0
+  ;gamestate 0 - new game
+  If gamestate = 0
+    DisplayPalette 1,1
+    DisplayBitMap 1,1
+    playerx=50    ;set ship position
+    playerfired=0 ;reset fired to 0
+    enespawned=0  ;reset enemies currently spawned to 0
+    death=0       ;make player alive
+    level=1       ;set starting level
+    score=0       ;set score
+    ss=0          ;sampled speech counter
+
+    :titleloop
+    CreateDisplay 1
+    BitMapOutput 1
+    Locate 0,20
+    Colour 8
+    mes+1         ;set message number
+    Gosub message ;go get message
+    Print message$
+    Locate 0,24
+    Colour 10
+    Print "          Press FIRE to start"
+    VWait
+    If Joyb(1)=0 Then Goto titleloop
+    ;pressed fire, setup screen ready for game
+    Use BitMap 0
+    CreateDisplay 0
+    DisplayBitMap 0,0
+    BitMapOutput 0
+    Cls
+    ;print the hud
+    Locate 0,0
+    Colour 14
+    Print"HighScore "
+    Locate 29,0
+    Print"Score "
+    Gosub hudupdate
+    Gosub levelinc
+    ;print the line at bottom of screen
+    Boxf 0,DispHeight-8,312,DispHeight-10,14
+    gamestate = 1 ; change the gamestate to start of level
+  EndIf
+
+;gamestate 1 - display the enemy head
+  If gamestate = 1
+    Gosub displayhead
+    Gosub displayhalo
+    Gosub counters
+  EndIf
+
+;gamestate 2 - display mothership and launch enemy ships
+  If gamestate = 2
+    Gosub displayspin
+  EndIf
+
+;gamestate 3 - main game loop
+  If gamestate = 3
+    Gosub player
+    Gosub counters
+    Gosub bullet
+    Gosub enemy
+    Gosub enemyfire
+    Gosub backsound
+    Gosub hudupdate
+    VWait
+  EndIf
+
+;gamestate 4 - game over
+  If gamestate = 4
+    Locate 14,12
+    Print"Game Over"
+    Sound 15,%1111
+    For a=0 To 90:Gosub displayhead:Next a
+    gamestate=0
+  EndIf
+
+Wend
+End
+
+.player
+If death=0
+  playerx +Joyx(1) * playerspeed
+  playerx = QLimit(playerx,16,294)
+  If playerfired = 0 AND playerfiredtimer = 0
+    If Joyb(1)=1
+    Sound 3,%1010
+    playerfired = 1
+    playerfiredtimer=15
+    bulletx=playerx+0
+    bullety=playery-16
+    EndIf
+  EndIf
+  If c1=0
+    playerframe + 1
+    If playerframe = 19 Then playerframe = 0
+  EndIf
+  If playerfired > 1
+    playerframe = 0
+  EndIf
+  If playerfired = 1
+    playerframe = 18
+  EndIf
+  If playerfired = 0
+    playerframe = QWrap(playerframe,0,3)
+  EndIf
+  UnQueue 0
+  QBlit 0,playerframe,playerx,playery
+EndIf
+
+If death > 0
+  For i=0To7
+  firetype(i)=0
+  enemyac(i)=0
+  Next i
+  death+1
+  playerframe=QWrap(playerframe,34,38)
+  playerx=QLimit(playerx,18,295)
+  UnQueue 0
+  QBlit 0,playerframe,playerx,playery
+  playerframe+1
+EndIf
+If death=100 Then gamestate=4
+Return
+
+.counters
+c1+1:c2+1:cs+1:c3+1:c4+1:c5+1:c6+1:playerfiredtimer-1
+c1 = QWrap(c1,0,1)
+c2 = QWrap(c2,0,3)
+c3 = QWrap(c3,0,2) ;explosion animation
+c4 = QWrap(c4,0,8)
+c5 = QWrap(c5,0,c5max) ;sound counter
+c6 = QWrap(c6,0,12); colour counter speed
+cs = QWrap(cs,0,enespsd)
+cc = QWrap(cc,0,5) ;colour counter
+If c4 = 0
+  If eneymax > 100 Then eneymax-1
+  If playerfiredtimer<0 Then playerfiredtimer=0
+cc+1
+EndIf
+;colour cycle
+If cc=0 PalRGB 0,13,10,4,4:PalRGB 0,15,15,0,15
+If cc=1 PalRGB 0,13,4,10,4:PalRGB 0,15,0,15,15
+If cc=2 PalRGB 0,13,4,4,10:PalRGB 0,15,15,15,0
+If cc=3 PalRGB 0,13,10,10,4:PalRGB 0,15,0,0,15
+If cc=4 PalRGB 0,13,4,10,10:PalRGB 0,15,0,15,0
+If cc=5 PalRGB 0,13,10,4,10:PalRGB 0,15,15,0,0
+DisplayPalette 0,0
+Return
+
+.bullet
+If playerfired > 0
+  playerfired +1
+  UnQueue 1
+  QBlit 1,3,bulletx,bullety
+  bullety-bulletspeed
+  If bullety < 18
+    playerfired = 0
+    UnQueue 1
+    QBlit 1,3,330,16
+  EndIf
+EndIf
+Return
+
+
+.displayhead
+UnQueue 2
+QBlit 2,headdata+4,150,80
+Read headdata
+VWait
+If headdata = 5
+  Restore
+  If gamestate = 1
+    Sound 1,%0101
+    gamestate = 2
+  EndIf
+EndIf
+Return
+
+.displayhalo
+If gamestate=1
+  If c6 = 0
+    Blit 38,150,60
+    Blit 41,125,80
+    Blit 41,175,80
+    Blit 38,150,100
+    Blit 39,175,60;
+    Blit 40,125,60;
+    Blit 40,175,100;
+    Blit 39,125,100;
+    Blit 42,150,30
+    Blit 42,105,80
+    Blit 42,195,80
+    Blit 42,150,130
+    Blit 42,105,40
+    Blit 42,195,40
+    Blit 42,105,120
+    Blit 42,195,120
+  EndIf
+  If c6 = 6
+    Blit 38,150,30
+    Blit 41,105,80
+    Blit 41,195,80
+    Blit 38,150,130
+    Blit 40,105,40;
+    Blit 39,195,40;
+    Blit 39,105,120;
+    Blit 40,195,120;
+    Blit 42,150,60
+    Blit 42,125,80
+    Blit 42,175,80
+    Blit 42,150,100
+    Blit 42,175,60
+    Blit 42,125,60
+    Blit 42,175,100
+    Blit 42,125,100
+  EndIf
+EndIf
+
+If gamestate=2
+  Blit 42,150,60
+  Blit 42,125,80
+  Blit 42,175,80
+  Blit 42,150,100
+  Blit 42,175,60
+  Blit 42,125,60
+  Blit 42,175,100
+  Blit 42,125,100
+  Blit 42,150,30
+  Blit 42,105,80
+  Blit 42,195,80
+  Blit 42,150,130
+  Blit 42,105,40
+  Blit 42,195,40
+  Blit 42,105,120
+  Blit 42,195,120
+EndIf
+Return
+
+.displayspin
+For c = 0 To 5
+  For i = 0 To 2
+    UnQueue 2
+    QBlit 2,i+9,150,80
+    Gosub counters
+    VWait
+    Gosub counters
+    VWait
+  Next i
+Next c
+For c = 0 To 5
+  For i = 3 To 5
+    UnQueue 2
+    QBlit 2,i+9,150,80
+    Gosub counters
+    VWait
+    Gosub counters
+    VWait
+  Next i
+Next c
+For c = 0 To 24
+  If cs=0
+    Gosub enemyspawn
+  EndIf
+  Gosub counters
+  For i = 6 To 8
+    UnQueue 2
+    QBlit 2,i+9,150,80
+    Gosub enemy
+    VWait
+  Next i
+Next c
+UnQueue 2
+gamestate = 3
+Return
+
+.enemyspawn
+If enespawned < 8
+  Let eneid = enespawned
+  enemyx(eneid)=150
+  enemyy(eneid)=80
+  enemyxd(eneid)=0
+  enemyyd(eneid)=0
+  enemyac(eneid)=1
+  UnQueue eneid+3
+  QBlit eneid+3,19,enemyx(eneid),enemyy(eneid)
+  enespawned + 1
+EndIf
+Return
+
+.enemy
+If splitup = 0
+  r=Rnd(1000)
+  Else
+  r=9999
+EndIf
+splitup=0
+For eneid=0 To 7
+  ;add random direction change
+  If r=9999 AND eneid=deadenemy Then r=Rnd(9)
+  If r=0 Then enemyxd(eneid)+1
+  If r=1 Then enemyxd(eneid)-1
+  If r=2 Then enemyyd(eneid)+1
+  If r=3 Then enemyyd(eneid)-1
+  If r=4 Then enemyxd(eneid)+1:enemyyd(eneid)+1
+  If r=5 Then enemyxd(eneid)-1:enemyyd(eneid)-1
+  If r=6 Then enemyxd(eneid)+1:enemyyd(eneid)-1
+  If r=7 Then enemyxd(eneid)-1:enemyyd(eneid)+1
+  If r=8 Then eneymax=Rnd(120)+100
+  enemyxd(eneid)=QWrap(enemyxd(eneid),0,2)
+  enemyyd(eneid)=QWrap(enemyyd(eneid),0,2)
+
+  If enemyac(eneid)=1
+    If enemyxd(eneid)=0
+      enemyx(eneid)-enespd
+      If enemyx(eneid) < 20
+      enemyx(eneid) = 20
+      enemyxd(eneid)=1
+      EndIf
+    EndIf
+    If enemyxd(eneid)=1
+      enemyx(eneid)+enespd
+      If enemyx(eneid) > 300
+      enemyx(eneid) = 300
+      enemyxd(eneid)=0
+      EndIf
+    EndIf
+    If enemyyd(eneid)=0
+      enemyy(eneid)-enespd
+      If enemyy(eneid) < 20
+      enemyy(eneid) = 20
+      enemyyd(eneid)=1
+      EndIf
+    EndIf
+    If enemyyd(eneid)=1
+      enemyy(eneid)+enespd
+      If enemyy(eneid) > eneymax
+      enemyy(eneid) = eneymax
+      enemyyd(eneid)=0
+      EndIf
+    EndIf
+    UnQueue eneid+3
+    QBlit eneid+3,19,enemyx(eneid),enemyy(eneid)
+    If playerfired > 0
+      If ShapesHit (3,bulletx,bullety,19,enemyx(eneid),enemyy(eneid))=-1
+      Let enemyac(eneid)=2:enemyexplode(eneid)=20:Sound 5,%0101:enespawned-1
+      Let playerfired = 0:UnQueue 1:score+5:Gosub hudupdate:splitup=1:deadenemy=eneid
+        If enespawned=0 Then level+1:Gosub levelinc:gamestate=1
+        EndIf
+      EndIf
+    EndIf
+    If enemyac(eneid)=2
+      UnQueue eneid+3
+      QBlit eneid+3,enemyexplode(eneid),enemyx(eneid),enemyy(eneid)
+      If enemyexplode(eneid)=23 Then enemyac(eneid)=3
+        If enemyac(eneid)=2
+        enemyexplode(eneid)+1
+        EndIf
+      EndIf
+      If enemyac(eneid)>2 AND enemyac(eneid)<20
+        If c3=0
+        fra=23
+        Else
+        fra=22
+        EndIf
+      UnQueue eneid+3
+      QBlit eneid+3,fra,enemyx(eneid),enemyy(eneid)
+      enemyac(eneid)+1
+      EndIf
+    If enemyac(eneid)=20
+    UnQueue eneid+3
+    QBlit eneid+3,enemyexplode(eneid),enemyx(eneid),enemyy(eneid)
+    enemyexplode(eneid)-1
+    If enemyexplode(eneid) < 20
+      enemyac(eneid) = 0
+      UnQueue eneid+3
+      QBlit eneid+3,20,330,50
+    EndIf
+  EndIf
+  If gamestate = 3
+    If enemyac(eneid) = 1
+      If firetype(eneid) = 0
+        f=Rnd(enefirerate)
+          If f = 0
+            Let firex(eneid)=enemyx(eneid):Let firey(eneid)=enemyy(eneid)
+              If level = 1
+              Let firetype(eneid)=1
+              EndIf
+              If level = 2
+              Let firetype(eneid)=Rnd(2)+1
+              EndIf
+              If level = 3
+              Let firetype(eneid)=Rnd(3)+1
+              EndIf
+              If level > 3
+              Let firetype(eneid)=Rnd(4)+1
+              EndIf
+            Sound 4,%0101
+            Let firexo(eneid)=firex(eneid):Let fireyo(eneid)=firey(eneid)
+          EndIf
+        EndIf
+      EndIf
+    EndIf
+Next eneid
+
+Return
+
+.enemyfire
+For eneid=0 To 7
+;checking For bullet collisions
+If firetype(eneid)>0 AND firetype(eneid)<5
+  ;check if player has shot down ene bullet
+  If playerfired > 0
+    If ShapesHit (3,bulletx,bullety,19,firex(eneid),firey(eneid))=-1
+      If firetype(eneid)=1 Then score+2
+      If firetype(eneid)=2 Then score+4
+      If firetype(eneid)=3 Then score+8
+      If firetype(eneid)=4 Then score+16
+      Gosub hudupdate
+      Let firetype(eneid)=5:firefra(eneid)=20:Sound 5,%0101
+      Let playerfired = 0:UnQueue 1
+    EndIf
+  EndIf
+  ;check if player has been hit by ene bullet
+  If ShapesHit (0,playerx,playery,19,firex(eneid),firey(eneid))=-1
+    Let death=1:playerframe=21:Sound 2,%1111
+  EndIf
+EndIf
+
+;all the different enemy bullet types
+If firetype(eneid) = 1
+  firey(eneid)+firespd
+  If c2=1
+    Let firefra(eneid) = 25
+    Else
+    Let firefra(eneid) = 24
+  EndIf
+  UnQueue 11+eneid
+  QBlit 11+eneid,firefra(eneid),firex(eneid),firey(eneid)
+  If firey(eneid)>238-firespd
+    firey(eneid)=239-firespd
+    UnQueue 11+eneid
+    firetype(eneid)=0
+  EndIf
+EndIf
+If firetype(eneid) = 4
+  firey(eneid)+firespd
+  f=Rnd(100)
+  If f=1 AND firey(eneid)<200
+    If firex(eneid)>playerx Then firexd(eneid)=-(4*firespd)
+    If firex(eneid)<playerx Then firexd(eneid)=(4*firespd)
+    Let firext(eneid)=5
+  EndIf
+  If firext(eneid)>0
+    firext(eneid)-1
+    firex(eneid)+firexd(eneid)
+  EndIf
+  If c2=0
+    firefra(eneid)+1
+  EndIf
+  firefra(eneid)=QWrap (firefra(eneid),28,30)
+  firex(eneid)=QLimit (firex(eneid),10,270)
+  UnQueue 11+eneid
+    QBlit 11+eneid,firefra(eneid),firex(eneid),firey(eneid)
+    If firey(eneid)>239-firespd
+      firey(eneid)=240-firespd
+      UnQueue 11+eneid
+      firetype(eneid)=0
+    EndIf
+EndIf
+
+If firetype(eneid) = 2
+  firey(eneid)+firespd
+  If c2=1
+    If firex(eneid)>playerx Then firex(eneid)-firespd
+    If firex(eneid)<playerx Then firex(eneid)+firespd
+  EndIf
+  If c3=0
+    firefra(eneid)+1
+  EndIf
+  firefra(eneid)=QWrap(firefra(eneid),26,28)
+  UnQueue 11+eneid
+  QBlit 11+eneid,firefra(eneid),firex(eneid),firey(eneid)
+  If firey(eneid)>239-firespd
+      firey(eneid)=240-firespd
+      UnQueue 11+eneid
+      firetype(eneid)=0
+  EndIf
+EndIf
+
+If firetype(eneid) = 3
+  firey(eneid)+firespd
+    If c4=1
+    firefra(eneid)+1
+    EndIf
+  firefra(eneid)=QWrap(firefra(eneid),30,34)
+  UnQueue 11+eneid
+  QBlit 11+eneid,firefra(eneid),firex(eneid),firey(eneid)
+    If firey(eneid)>239-firespd
+    Let firey(eneid)=240-firespd
+      If firex(eneid)<playerx
+      firex(eneid) + firespd
+      Else
+      firex(eneid) - firespd
+      EndIf
+        If firex(eneid)<firexo(eneid)-50 OR firex(eneid)>firexo(eneid)+50
+        firetype(eneid) = 0
+        UnQueue 11+eneid
+        EndIf
+    EndIf
+EndIf
+
+;change enemy fire into an explosion
+If firetype(eneid)=>5
+  UnQueue eneid+11
+  QBlit eneid+11,firefra(eneid),firex(eneid),firey(eneid)
+    firefra(eneid)+1:firetype(eneid)+1
+    firefra(eneid)=QWrap(firefra(eneid),22,24)
+    If firetype(eneid)=>20 Then UnQueue eneid+11:firetype(eneid)=0
+EndIf
+
+Next eneid
+Return
+
+.levelinc
+Restore
+For i=0 To 19
+UnQueue i
+Next i
+For i=0 To 7
+firetype(i)=0
+Next i
+playerx=50
+Sound 0,%0100,64
+Sound 14+ss,%1011,64,64,64
+ss+1
+If ss=maxsample
+Then ss = 0
+EndIf
+;level vars
+If level = 0
+lvlsound = 10
+c5max=32
+enespd=2 ;enemy speed
+enespsd=2 ;enemy spawn speed
+enefirerate=100
+firespd=2
+EndIf
+If level = 1
+lvlsound = 10
+c5max=32
+enespd=2 ;enemy speed
+enespsd=2 ;enemy spawn speed
+enefirerate=100
+firespd=2
+EndIf
+If level = 2
+lvlsound = 11
+c5max=27
+enefirerate=100
+EndIf
+If level = 3
+lvlsound = 12
+c5max=24
+EndIf
+If level = 4
+lvlsound = 13
+c5max=20
+EndIf
+If level = 5
+enespd=2
+enespsd=2
+firespd=3
+enefirerate=85
+EndIf
+If level = 6
+enefirerate=75
+EndIf
+If level = 7
+enefirerate=100
+enespd=2
+enespsd=2
+firespd=4
+EndIf
+If level=8
+enefirerate=85
+enespd=2
+enespsd=2
+firespd=4
+EndIf
+If level=9
+enefirerate=75
+enespd=2
+enespsd=2
+firespd=4
+EndIf
+If level=10
+enefirerate=100
+enespd=2
+enespsd=2
+firespd=5
+EndIf
+If level=11
+enefirerate=85
+enespd=2
+enespsd=2
+firespd=5
+EndIf
+If level=12
+enefirerate=75
+enespd=2
+enespsd=2
+firespd=5
+EndIf
+If level=13
+enefirerate=100
+enespd=2
+enespsd=2
+firespd=6
+EndIf
+If level=14
+enefirerate=85
+enespd=2
+enespsd=2
+firespd=6
+EndIf
+If level=15
+enefirerate=75
+enespd=2
+enespsd=2
+firespd=6
+EndIf
+If level=16
+enefirerate=100
+enespd=2
+enespsd=2
+firespd=7
+EndIf
+If level=17
+enefirerate=85
+enespd=2
+enespsd=2
+firespd=7
+EndIf
+If level=18
+enefirerate=75
+enespd=2
+enespsd=2
+firespd=7
+EndIf
+If level=19
+enefirerate=100
+enespd=3
+enespsd=1
+firespd=7
+EndIf
+Return
+
+.backsound
+If c5=0
+Sound lvlsound,%1010
+EndIf
+Return
+
+.hudupdate
+If score > highscore Then highscore = score
+Colour 6
+Locate 10,0
+Print highscore
+Locate 35,0
+Print score
+Return
+
+.headanidata
+Data 0,0,0,1,1,1,1,1,2,2,2,2,2,3,3,3,3,3,4,3,3,3,3,3,4,3,3,3,3,4,4,4,3,3,3,3,3,3,3,3,3,3,4,4,4,3,3,3,3,3,3,3,4,4,4,4,4,4,4,3,3
+Data 4,4,4,3,3,3,3,4,3,3,3,3,4,3,3,3,3,3,2,2,2,2,2,1,1,1,1,1,0,0,0,0,0,5
+
+.message
+If mes=1 Then message$="        A Philips videopac game      "
+If mes=100 Then message$="     Amiga version Gary James 2017    "
+If mes=200 Then message$="  Play testing - Alfie and Tara James"
+If mes=300 Then mes=0
+Return
+
